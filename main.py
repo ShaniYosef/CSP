@@ -2,7 +2,7 @@ import argparse
 import copy
 import itertools
 
-QUIET = False
+QUIET = True
 
 def LOG(string, end="\n"):
     if not QUIET:
@@ -42,6 +42,11 @@ class CSP:
                 # if all the variables needed for the constraint are assigned
                 if set(constrain_vars).issubset(self.assignment.keys()):
                     if not constrain(*[self.assignment[var] for var in constrain_vars]):
+                        del self.assignment[variable]
+                        return False
+                elif constrain == constrain_alldiff:
+                    assigend = [val for key,val in self.assignment.items() if not key[-1].isdigit()]
+                    if len(assigend) != len(set(assigend)):
                         del self.assignment[variable]
                         return False
 
@@ -108,7 +113,7 @@ def order_domain_values(csp, variable):
     sort = sorted(csp.D[variable[0]], key=lambda x: csp.constraint_count(variable, x))
 
     LOG(f"LCV: ordered values of {variable[0]}: {sort}")
-    return sorted(csp.D[variable[0]], key=lambda x: csp.constraint_count(variable, x))
+    return sort
 
 
 def combinations(list1, *otherlist):
@@ -132,11 +137,33 @@ def revise(csp, Xi, Xj):
                     else [csp.assignment[var]]
                     for var in xj_vars
                     ]
-        for xj in combinations(*new_list):
-            vars = [xj[xj_vars.index(var)] for var in Xj]
+
+        if csp.C[Xj] == constrain_alldiff:
+            failed = False
+            temp = {xi_var: xi_value}
+            for var in xj_vars:
+                values = order_domain_values(csp, (var,))
+                for v in temp.values():
+                    if v in values:
+                        values.remove(v)
+                if len(values) == 0:
+                    failed = True
+                    break
+                temp[var] = values[0]
+            if failed:
+                break
+
+            vars = [temp[var] for var in Xj]
             if csp.C[Xj](*vars):
                 satisfy = True
-                break
+            break
+
+        else:
+            for xj in combinations(*new_list):
+                vars = [xj[xj_vars.index(var)] for var in Xj]
+                if csp.C[Xj](*vars):
+                    satisfy = True
+                    break
         if not satisfy:
             csp.D[xi_var].remove(xi_value)
             revised = True
@@ -163,7 +190,8 @@ def ac3(csp, arc=None):
                 return False
             for Xk in csp.get_neighbors(Xi):
                 if Xj != Xk:
-                    arc.append((Xi, Xk))
+                    if (Xi, Xk) not in arc:
+                        arc.append((Xi, Xk))
 
     LOG(f"AC-3: Domains state after {csp.D}")
     return True

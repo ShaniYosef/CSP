@@ -2,7 +2,7 @@ import argparse
 import copy
 import itertools
 
-QUIET = True
+QUIET = False
 
 def LOG(string, end="\n"):
     if not QUIET:
@@ -199,12 +199,13 @@ def ac3(csp, arc=None):
 
 
 def print_result(result):
-    print("\n---------------------------------------")
-    for d, v in result.items():
+    print("---------------------------------------")
+    result_sorted = sorted(result.keys())
+    for d in result_sorted:
         res = any(chr.isdigit() for chr in d)
         if not res:
-            print(f"{d}={v} ", end="")
-    print("\n---------------------------------------\n")
+            print(f"{d}={result[d]} ", end="")
+    print("\n---------------------------------------")
 
 
 def backtrack(csp):

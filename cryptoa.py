@@ -234,7 +234,7 @@ def backtrack(csp):
             if ac3(csp, arc) and (value in csp.D[variable[0]]):
                 result = backtrack(csp)
                 if result is not None:
-                    csp.results.append(result)
+                    csp.results.append(copy.deepcopy(result))
                     print_result(result)
             LOG(f"backtrack: Failed removing {variable[0]} = {value}")
             del csp.assignment[variable[0]]
@@ -349,6 +349,9 @@ def main(name):
     result = backtracking_search(csp)
     if not len(csp.results):
         print(f"There is no solution for the puzzle: {args.summand1} + {args.summand2} = {args.sum}")
+
+    for r in csp.results:
+        print_result(r)
 
 
 if __name__ == '__main__':

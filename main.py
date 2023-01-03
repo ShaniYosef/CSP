@@ -1,6 +1,12 @@
 import argparse
+import copy
 import itertools
 
+QUIET = False
+
+def LOG(string, end="\n"):
+    if not QUIET:
+        print(string, end=end)
 
 def ERROR(string):
     print(string)
@@ -90,7 +96,7 @@ def MRV(csp):
         (len(csp.D[var]), (var,)) for var in csp.X if var not in csp.assignment.keys()
     ]
     choice = min(remaining, key=lambda t: t[0])[1]
-    print(f"MRV: remaining values {remaining} choose {choice[0]}")
+    LOG(f"MRV: remaining values {remaining} choose {choice[0]}")
     return choice
 
 
@@ -101,7 +107,7 @@ def select_unassigned_variable(csp):
 def order_domain_values(csp, variable):
     sort = sorted(csp.D[variable[0]], key=lambda x: csp.constraint_count(variable, x))
 
-    print(f"LCV: ordered values of {variable[0]}: {sort}")
+    LOG(f"LCV: ordered values of {variable[0]}: {sort}")
     return sorted(csp.D[variable[0]], key=lambda x: csp.constraint_count(variable, x))
 
 
@@ -110,73 +116,9 @@ def combinations(list1, *otherlist):
     return result
 
 
-# def revise(csp, Xi, Xj):
-#     revised = False
-#
-#     for var in Xi:
-#         if var not in csp.assignment.keys():
-#             for val in csp.D[var]:
-#                 satisfy = False
-#                 for Xi_vals in combinations(
-#                         *[
-#                             csp.D[x] if (x not in csp.assignment.keys() and x != var) else
-#                             [csp.assignment[x]] if x in csp.assignment.keys() else
-#                             [val] for x in Xi
-#                         ]):
-#                     new_list = [
-#                         csp.D[x] if (x not in Xi and x not in csp.assignment.keys())
-#                         else [Xi_vals[Xi.index(x)]] if (x in Xi)
-#                         else [csp.assignment[x]]
-#                         for x in Xj
-#                     ]
-#                     for Xj_vals in combinations(*new_list):
-#                         if csp.C[Xj](*Xj_vals):
-#                             satisfy = True
-#                             break
-#                     if satisfy:
-#                         break
-#                 if not satisfy:
-#                     csp.D[var].remove(val)
-#                     revised = True
-#     return revised
-#
-#                     # revised = False
-#     # satisfy = False
-#     # for var in Xi:
-#     #     if var in csp.assignment.keys():
-#     #     for val in csp.D[var]:
-#     #         l = [
-#     #             csp.D[x] if x not in csp.assignment.keys() else
-#     #             [csp.assignment[var]] if
-#     #
-#     #         ]
-#     #         for Xi_vals in combinations(*[csp.D[x] if x not in csp.assignment.keys() else [csp.assignment[var]] for x in Xi])
-#     # for Xi_vals in combinations(*[csp.D[var] if var not in csp.assignment.keys() else [csp.assignment[var]] for var in Xi]):
-#     #     satisfy = False
-#     #     new_list = [
-#     #         csp.D[var] if (var not in Xi and var not in csp.assignment.keys())
-#     #         else [Xi_vals[Xi.index(var)]] if (var in Xi)
-#     #         else [csp.assignment[var]]
-#     #         for var in Xj
-#     #     ]
-#     #
-#     #     for Xj_vals in combinations(*new_list):
-#     #         if csp.C[Xj](*Xj_vals):
-#     #             satisfy = True
-#     #             break
-#     #
-#     #     if not satisfy:
-#     #         for var in Xi:
-#     #             print(Xi_vals[Xi.index(var)])
-#     #             csp.D[var].remove(Xi_vals[Xi.index(var)])
-#     #         revised = True
-#     #
-#     # return revised
-
 def revise(csp, Xi, Xj):
     revised = False
     xi_var = Xi[0]
-    print(f"revise: Domains state before { csp.D[xi_var]}")
     xj_vars = list(set(Xj))
     if xi_var in csp.assignment.keys():
         potential_values = [csp.assignment[xi_var]]
@@ -196,14 +138,13 @@ def revise(csp, Xi, Xj):
                 satisfy = True
                 break
         if not satisfy:
-            print(f"revise: remove {xi_value} from {xi_var} domain")
             csp.D[xi_var].remove(xi_value)
             revised = True
     return revised
 
 
 def ac3(csp, arc=None):
-    print(f"AC-3: Domains state before {csp.D}")
+    LOG(f"AC-3: Domains state before {csp.D}")
     if not arc:
         arc = []
         for var in csp.X:
@@ -213,25 +154,29 @@ def ac3(csp, arc=None):
 
     while arc:
         Xi, Xj = arc.pop()
-        if Xi == ('O', ):
-            print("stam")
-        print(f"AC-3: Check {Xi} {Xj} arc")
         if revise(csp, Xi, Xj):
             if len(csp.D[Xi[0]]) == 0:
-                print(f"AC-3: Var {Xi[0]} has no valid values")
+                LOG(f"AC-3: Var {Xi[0]} has no valid values")
                 return False
             if Xi[0] in csp.assignment.keys() and csp.assignment[Xi[0]] not in csp.D[Xi[0]]:
-                print(f"AC-3: Var {Xi[0]} has an invalid assignment")
+                LOG(f"AC-3: Var {Xi[0]} has an invalid assignment")
                 return False
             for Xk in csp.get_neighbors(Xi):
                 if Xj != Xk:
                     arc.append((Xi, Xk))
 
-    print(f"AC-3: Domains state after {csp.D}")
+    LOG(f"AC-3: Domains state after {csp.D}")
     return True
 
 
 def backtrack(csp):
+    if len(csp.assignment) > 0:
+        LOG("backtrack: assignment so far: ", end="")
+        for d, v in csp.assignment.items():
+            res = any(chr.isdigit() for chr in d)
+            if not res:
+                LOG(f"{d}={v} ", end="")
+        LOG("")
     if len(csp.assignment) == len(csp.X):
         return csp.assignment
 
@@ -239,23 +184,21 @@ def backtrack(csp):
 
     for value in order_domain_values(csp, variable):
         if csp.is_consistent(variable[0], value):
-            print(f"backtrack: Trying to assign {variable[0]} = {value}")
+            LOG(f"backtrack: Trying to assign {variable[0]} = {value}")
             csp.assignment[variable[0]] = value
             arc = []
             for Xi in csp.get_neighbors(variable):
                 if not set(Xi).issubset(csp.assignment.keys()):
                     arc.append((variable, Xi))
 
-            old_csp = csp
-            print(f"Domains before: {csp.D[variable[0]]}")
+            old_csp_domain = copy.deepcopy(csp.D)
             if ac3(csp, arc) and (value in csp.D[variable[0]]):
-                print(f"Domains after: {csp.D[variable[0]]}")
                 result = backtrack(csp)
                 if result is not None:
                     return result
-            print(f"backtrack: Failed removing {variable[0]} = {value}")
+            LOG(f"backtrack: Failed removing {variable[0]} = {value}")
             del csp.assignment[variable[0]]
-            csp = old_csp
+            csp.D = old_csp_domain
     return None
 
 
@@ -363,11 +306,17 @@ def main(name):
             csp.add_constraint(constrain_carry, ("c" + str(c),))
             c += 1
 
-
     result = backtracking_search(csp)
     if not result:
         print(f"There is no solution for the puzzle: {args.summand1} + {args.summand2} = {args.sum}")
-    print(result)
+
+    else:
+        print("\n---------------------------------------")
+        for d,v in result.items():
+            res = any(chr.isdigit() for chr in d)
+            if not res:
+                print(f"{d}={v} ", end="")
+        print("\n---------------------------------------\n")
 
 
 if __name__ == '__main__':

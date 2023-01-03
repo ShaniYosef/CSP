@@ -25,6 +25,7 @@ class CSP:
         self.D = {}
         self.C = {}
         self.assignment = {}
+        self.results = []
 
     def add_variable(self, var, domain):
         if var not in self.X:
@@ -197,6 +198,15 @@ def ac3(csp, arc=None):
     return True
 
 
+def print_result(result):
+    print("\n---------------------------------------")
+    for d, v in result.items():
+        res = any(chr.isdigit() for chr in d)
+        if not res:
+            print(f"{d}={v} ", end="")
+    print("\n---------------------------------------\n")
+
+
 def backtrack(csp):
     if len(csp.assignment) > 0:
         LOG("backtrack: assignment so far: ", end="")
@@ -223,7 +233,8 @@ def backtrack(csp):
             if ac3(csp, arc) and (value in csp.D[variable[0]]):
                 result = backtrack(csp)
                 if result is not None:
-                    return result
+                    csp.results.append(result)
+                    print_result(result)
             LOG(f"backtrack: Failed removing {variable[0]} = {value}")
             del csp.assignment[variable[0]]
             csp.D = old_csp_domain
@@ -335,16 +346,8 @@ def main(name):
             c += 1
 
     result = backtracking_search(csp)
-    if not result:
+    if not len(csp.results):
         print(f"There is no solution for the puzzle: {args.summand1} + {args.summand2} = {args.sum}")
-
-    else:
-        print("\n---------------------------------------")
-        for d,v in result.items():
-            res = any(chr.isdigit() for chr in d)
-            if not res:
-                print(f"{d}={v} ", end="")
-        print("\n---------------------------------------\n")
 
 
 if __name__ == '__main__':
